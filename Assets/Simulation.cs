@@ -38,8 +38,10 @@ public class Simulation : MonoBehaviour
     private int _currentRound = 0;
     private float _roundTimeRemaining;
     private bool _roundRunning = false;
+    private bool _isDemoRound = false;
 
     private string _resultsFilePath;
+    private DecisionSet _bestOverallDecisionSet;
 
     public int CurrentRound => _currentRound;
     public float RoundTimeRemaining => _roundTimeRemaining;
@@ -109,6 +111,12 @@ public class Simulation : MonoBehaviour
     /// </summary>
     private void EndRound()
     {
+        if (_isDemoRound)
+        {
+            EndDemoRound();
+            return;
+        }
+
         _roundRunning = false;
         ScoreCars();
         AppendRoundResults();
@@ -126,6 +134,27 @@ public class Simulation : MonoBehaviour
     private void EndSimulation()
     {
         Debug.Log($"[Simulation] Finished. Results saved to: {_resultsFilePath}");
+        StartDemoRound();
+    }
+
+    private void StartDemoRound()
+    {
+        if (_bestOverallDecisionSet == null) return;
+
+        Debug.Log($"[Simulation] Demo run — best score: {_bestOverallDecisionSet.score:F4}");
+        _isDemoRound = true;
+        _roundTimeRemaining = _roundDuration*10;
+        _activeCars.Clear();
+        SpawnCars(new List<DecisionSet> { _bestOverallDecisionSet });
+        _roundRunning = true;
+    }
+
+    private void EndDemoRound()
+    {
+        _roundRunning = false;
+        _isDemoRound = false;
+        DestroyAllCars();
+        Debug.Log("[Simulation] Demo run finished.");
     }
 
     private void AppendRoundResults()
@@ -137,6 +166,9 @@ public class Simulation : MonoBehaviour
         double worst = sets.Min(d => d.score);
         double avg = sets.Average(d => d.score);
         DecisionSet bestDs = sets.OrderByDescending(d => d.score).First();
+
+        if (_bestOverallDecisionSet == null || bestDs.score > _bestOverallDecisionSet.score)
+            _bestOverallDecisionSet = bestDs;
 
         string line = string.Format(
             System.Globalization.CultureInfo.InvariantCulture,
