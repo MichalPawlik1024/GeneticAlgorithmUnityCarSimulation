@@ -9,8 +9,12 @@ public class Car : MonoBehaviour
     public GameObject WheelRL;
     public GameObject WheelRR;
 
+    public LayerMask WallLayerMask;
+
     public float MaxEngineMomentum = 1f;
     public float MaxSteeringAngle = 30f;
+
+    public bool IsDeactivated = false;
 
     // Start is called before the first frame update
     void Start()
@@ -28,5 +32,14 @@ public class Car : MonoBehaviour
         float engine = Input.GetAxis("Vertical");
         WheelRL.GetComponent<Wheel>().EngineMomentum = engine * MaxEngineMomentum;
         WheelRR.GetComponent<Wheel>().EngineMomentum = engine * MaxEngineMomentum;
+    }
+
+    private void OnCollisionEnter(Collision collision)
+    {
+        if (((1 << collision.gameObject.layer) & WallLayerMask.value) != 0)
+        {
+            IsDeactivated = true;
+            GetComponent<Rigidbody>().isKinematic = true;
+        }
     }
 }

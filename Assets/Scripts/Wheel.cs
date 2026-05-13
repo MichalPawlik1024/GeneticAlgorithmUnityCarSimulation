@@ -22,6 +22,8 @@ public class Wheel : MonoBehaviour
 
     public float EngineDerating = 1f;
 
+    public LayerMask GroundLayerMask;
+
     [HideInInspector]
     public float EngineMomentum { get; set; } = 0f;
 
@@ -45,7 +47,7 @@ public class Wheel : MonoBehaviour
     void FixedUpdate()
     {
         RaycastHit hit;
-        bool onGround = Physics.Raycast(SuspensionOrigin.transform.position, -SuspensionOrigin.transform.up, out hit, SpringLength + Radius);
+        bool onGround = Physics.Raycast(SuspensionOrigin.transform.position, -SuspensionOrigin.transform.up, out hit, SpringLength + Radius, GroundLayerMask.value);
 
 
         if (onGround)
