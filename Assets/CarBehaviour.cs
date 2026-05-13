@@ -20,7 +20,6 @@ public class CarBehaviour : MonoBehaviour
     // ── References ────────────────────────────────────────────────────────────
 
     private Simulation _simulation;
-    private Sensor _sensor;
     private Rigidbody _rigidbody;
 
     // ── State ─────────────────────────────────────────────────────────────────
@@ -31,7 +30,6 @@ public class CarBehaviour : MonoBehaviour
 
     private void Awake()
     {
-        _sensor = GetComponent<Sensor>();
         _rigidbody = GetComponent<Rigidbody>();
         _simulation = GetComponentInParent<Simulation>();
     }
@@ -46,9 +44,10 @@ public class CarBehaviour : MonoBehaviour
 
     private void OnCollisionEnter(Collision collision)
     {
-        var trackObject = collision.gameObject.GetComponent<TrackObject>();
-        if (trackObject != null && trackObject.IsFatal())
+        if (false)
+        {
             HandleCrash();
+        }
     }
 
     // ── Decision making ───────────────────────────────────────────────────────

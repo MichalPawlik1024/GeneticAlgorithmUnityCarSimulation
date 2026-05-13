@@ -13,7 +13,6 @@ public class Simulation : MonoBehaviour
     // ── Inspector ────────────────────────────────────────────────────────────
 
     [Header("References")]
-    [SerializeField] private Track _track;
     [SerializeField] private GameObject _carPrefab;
 
     [Header("Simulation parameters")]
@@ -37,7 +36,6 @@ public class Simulation : MonoBehaviour
     private float _roundTimeRemaining;
     private bool _roundRunning = false;
 
-    public Track Track => _track;
     public int CurrentRound => _currentRound;
     public float RoundTimeRemaining => _roundTimeRemaining;
 
