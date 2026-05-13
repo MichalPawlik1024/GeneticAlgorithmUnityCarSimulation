@@ -12,6 +12,7 @@ public class Car : MonoBehaviour
 
     public Sensor SensorLeft;
     public Sensor SensorRight;
+    public Sensor SensorForward;
 
     public LayerMask WallLayerMask;
 
@@ -35,6 +36,7 @@ public class Car : MonoBehaviour
     {
         float leftSensor = SensorLeft.GetValue();
         float rightSensor = SensorRight.GetValue();
+        float forwardSensor = SensorForward.GetValue();
 
         steering = 0f;
         engine = 0f;
@@ -52,7 +54,7 @@ public class Car : MonoBehaviour
 
         float minDistance = Mathf.Min(leftSensor, rightSensor);
 
-        if (minDistance < DecisionSet.decelerateThreshold)
+        if (forwardSensor < DecisionSet.decelerateThreshold)
         {
             engine = (float)-DecisionSet.decelerateValue;
         }
