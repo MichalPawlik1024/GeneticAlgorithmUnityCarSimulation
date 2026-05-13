@@ -14,6 +14,7 @@ public class Simulation : MonoBehaviour
 
     [Header("References")]
     [SerializeField] private GameObject _carPrefab;
+    [SerializeField] private GameObject _simulationStartPoint;
 
     [Header("Simulation parameters")]
     [SerializeField] private float _roundDuration = 30f;   // seconds per round
@@ -30,7 +31,7 @@ public class Simulation : MonoBehaviour
     // ── State ────────────────────────────────────────────────────────────────
 
     private GeneticAlgorithm.GeneticAlgorithm _geneticAlgorithm;
-    private List<CarBehaviour> _activeCars = new List<CarBehaviour>();
+    private List<Car> _activeCars = new List<Car>();
 
     private int _currentRound = 0;
     private float _roundTimeRemaining;
@@ -97,9 +98,9 @@ public class Simulation : MonoBehaviour
     private void EndRound()
     {
         _roundRunning = false;
+        ScoreCars();
         DestroyAllCars();
 
-        ScoreCars();
         _geneticAlgorithm.run();
 
         if (_currentRound < _numberOfRounds)
@@ -125,6 +126,9 @@ public class Simulation : MonoBehaviour
         foreach (var ds in decisionSets)
         {
             // TODO: Instantiate _carPrefab, set car.decisionSet = ds, register sensors
+            Car newCar = Instantiate(_carPrefab, _simulationStartPoint.transform.position, _simulationStartPoint.transform.rotation, transform).GetComponent<Car>();
+            newCar.DecisionSet = ds;
+            _activeCars.Add(newCar);
         }
     }
 
@@ -142,18 +146,6 @@ public class Simulation : MonoBehaviour
     }
 
     /// <summary>
-    /// Called by a CarBehaviour when it detects a fatal collision.
-    /// Removes the car from the active list and records its score before destruction.
-    /// </summary>
-    public void OnCarCrashed(CarBehaviour car)
-    {
-        // TODO: finalise car.decisionSet.score, remove from _activeCars, Destroy(car.gameObject)
-        // Optionally end round early if all cars have crashed.
-    }
-
-    // ── Scoring ───────────────────────────────────────────────────────────────
-
-    /// <summary>
     /// Writes the final score into each car's DecisionSet based on CompletedDistance.
     /// Called at the end of a round for all surviving cars.
     /// </summary>
@@ -161,7 +153,8 @@ public class Simulation : MonoBehaviour
     {
         foreach (var car in _activeCars)
         {
-            // TODO: car.decisionSet.score = f(car.CompletedDistance)
+            float distance = (car.transform.position - _simulationStartPoint.transform.position).magnitude;
+            car.DecisionSet.score = distance;
         }
     }
 }
