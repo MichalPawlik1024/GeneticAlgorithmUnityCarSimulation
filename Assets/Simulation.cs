@@ -1,5 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Linq;
 using UnityEngine;
 using GeneticAlgorithm;
 
@@ -36,6 +38,10 @@ public class Simulation : MonoBehaviour
     private int _currentRound = 0;
     private float _roundTimeRemaining;
     private bool _roundRunning = false;
+    private bool _isDemoRound = false;
+
+    private string _resultsFilePath;
+    private DecisionSet _bestOverallDecisionSet;
 
     public int CurrentRound => _currentRound;
     public float RoundTimeRemaining => _roundTimeRemaining;
@@ -75,6 +81,14 @@ public class Simulation : MonoBehaviour
             _mutationChancePercent
         );
 
+        string timestamp = System.DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
+        _resultsFilePath = Path.Combine(Application.persistentDataPath, $"ga_results_{timestamp}.csv");
+        File.WriteAllText(_resultsFilePath,
+            "round,best_score,avg_score,worst_score," +
+            "best_turnThreshold,best_accelerateThreshold,best_decelerateThreshold," +
+            "best_steerValue,best_accelerateValue,best_decelerateValue\n");
+        Debug.Log($"[Simulation] Saving results to: {_resultsFilePath}");
+
         _currentRound = 0;
         StartRound();
     }
@@ -97,8 +111,15 @@ public class Simulation : MonoBehaviour
     /// </summary>
     private void EndRound()
     {
+        if (_isDemoRound)
+        {
+            EndDemoRound();
+            return;
+        }
+
         _roundRunning = false;
         ScoreCars();
+        AppendRoundResults();
         DestroyAllCars();
 
         _geneticAlgorithm.run();
@@ -112,7 +133,51 @@ public class Simulation : MonoBehaviour
     /// <summary>Called when all configured rounds have completed.</summary>
     private void EndSimulation()
     {
-        // TODO: display/export results
+        Debug.Log($"[Simulation] Finished. Results saved to: {_resultsFilePath}");
+        StartDemoRound();
+    }
+
+    private void StartDemoRound()
+    {
+        if (_bestOverallDecisionSet == null) return;
+
+        Debug.Log($"[Simulation] Demo run — best score: {_bestOverallDecisionSet.score:F4}");
+        _isDemoRound = true;
+        _roundTimeRemaining = _roundDuration*10;
+        _activeCars.Clear();
+        SpawnCars(new List<DecisionSet> { _bestOverallDecisionSet });
+        _roundRunning = true;
+    }
+
+    private void EndDemoRound()
+    {
+        _roundRunning = false;
+        _isDemoRound = false;
+        DestroyAllCars();
+        Debug.Log("[Simulation] Demo run finished.");
+    }
+
+    private void AppendRoundResults()
+    {
+        var sets = _geneticAlgorithm.getDecisionSets();
+        if (sets == null || sets.Count == 0) return;
+
+        double best = sets.Max(d => d.score);
+        double worst = sets.Min(d => d.score);
+        double avg = sets.Average(d => d.score);
+        DecisionSet bestDs = sets.OrderByDescending(d => d.score).First();
+
+        if (_bestOverallDecisionSet == null || bestDs.score > _bestOverallDecisionSet.score)
+            _bestOverallDecisionSet = bestDs;
+
+        string line = string.Format(
+            System.Globalization.CultureInfo.InvariantCulture,
+            "{0},{1:F4},{2:F4},{3:F4},{4:F6},{5:F6},{6:F6},{7:F6},{8:F6},{9:F6}\n",
+            _currentRound, best, avg, worst,
+            bestDs.turnThreshold, bestDs.accelerateThreshold, bestDs.decelerateThreshold,
+            bestDs.steerValue, bestDs.accelerateValue, bestDs.decelerateValue);
+
+        File.AppendAllText(_resultsFilePath, line);
     }
 
     // ── Car management ────────────────────────────────────────────────────────
