@@ -15,6 +15,10 @@ public class DecisionSet
     [Gene] public double accelerateThreshold;
     [Gene] public double decelerateThreshold;
 
+    [Gene] public double steerValue;
+    [Gene] public double accelerateValue;
+    [Gene] public double decelerateValue;
+
     public DecisionSet() { }
 
     public DecisionSet(double score, double turnThreshold, double accelerateThreshold, double decelerateThreshold)

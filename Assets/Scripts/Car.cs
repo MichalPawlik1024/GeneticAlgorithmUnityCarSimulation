@@ -10,6 +10,9 @@ public class Car : MonoBehaviour
     public GameObject WheelRL;
     public GameObject WheelRR;
 
+    public Sensor SensorLeft;
+    public Sensor SensorRight;
+
     public LayerMask WallLayerMask;
 
     public float MaxEngineMomentum = 1f;
@@ -25,18 +28,44 @@ public class Car : MonoBehaviour
     // Start is called before the first frame update
     void Start()
     {
-        steering = Random.Range(-1f, 1f);
-        engine = Random.Range(0.1f, 1f);
     }
 
     // Update is called once per frame
     void Update()
     {
-        steering = (float)DecisionSet.turnThreshold;
-        engine = (float)DecisionSet.accelerateThreshold;
+        float leftSensor = SensorLeft.GetValue();
+        float rightSensor = SensorRight.GetValue();
 
-        //float steering = Input.GetAxis("Horizontal");
-        SuspensionOriginFL.transform.localRotation = Quaternion.Euler(0f, steering * MaxSteeringAngle, 0f);
+        steering = 0f;
+        engine = 0f;
+
+        if (leftSensor < rightSensor)
+        {
+            if (leftSensor < DecisionSet.turnThreshold)
+                steering = (float)DecisionSet.steerValue;
+        }
+        else
+        {
+            if (rightSensor < DecisionSet.turnThreshold)
+                steering = (float)-DecisionSet.steerValue;
+        }
+
+        float minDistance = Mathf.Min(leftSensor, rightSensor);
+
+        if (minDistance < DecisionSet.decelerateThreshold)
+        {
+            engine = (float)-DecisionSet.decelerateValue;
+        }
+        else if (minDistance > DecisionSet.accelerateThreshold)
+        {
+            engine = (float)DecisionSet.accelerateValue;
+        }
+
+            //steering = (float)DecisionSet.turnThreshold;
+            //engine = (float)DecisionSet.accelerateThreshold;
+
+            //float steering = Input.GetAxis("Horizontal");
+            SuspensionOriginFL.transform.localRotation = Quaternion.Euler(0f, steering * MaxSteeringAngle, 0f);
         SuspensionOriginFR.transform.localRotation = Quaternion.Euler(0f, steering * MaxSteeringAngle, 0f);
 
         //float engine = Input.GetAxis("Vertical");
