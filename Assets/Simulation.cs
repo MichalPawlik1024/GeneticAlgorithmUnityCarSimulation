@@ -132,6 +132,9 @@ public class Simulation : MonoBehaviour
 
         _roundRunning = false;
         ScoreCars();
+        var elite = _geneticAlgorithm.decisionSets.OrderByDescending(d => d.score).First();
+        Debug.Log($"Round {_currentRound} | Elite score: {elite.score:F2} | Best this round: {_geneticAlgorithm.decisionSets.Max(d => d.score):F2}");
+        AppendRoundResults();
         AppendRoundResults();
         DestroyAllCars();
 
@@ -221,19 +224,22 @@ public class Simulation : MonoBehaviour
         var sets = _geneticAlgorithm.getDecisionSets();
         if (sets == null || sets.Count == 0) return;
 
-        double best = sets.Max(d => d.score);
         double worst = sets.Min(d => d.score);
         double avg = sets.Average(d => d.score);
         DecisionSet bestDs = sets.OrderByDescending(d => d.score).First();
+
+        // Aktualizuj all-time best, potem użyj go do CSV
         if (_bestOverallDecisionSet == null || bestDs.score > _bestOverallDecisionSet.score)
             _bestOverallDecisionSet = bestDs;
+
+        double best = _bestOverallDecisionSet.score; // monotonicznie rosnący
 
         string line = string.Format(
             System.Globalization.CultureInfo.InvariantCulture,
             "{0},{1:F4},{2:F4},{3:F4},{4:F6},{5:F6},{6:F6},{7:F6},{8:F6},{9:F6}\n",
             _currentRound, best, avg, worst,
-            bestDs.turnThreshold, bestDs.accelerateThreshold, bestDs.decelerateThreshold,
-            bestDs.steerValue, bestDs.accelerateValue, bestDs.decelerateValue);
+            _bestOverallDecisionSet.turnThreshold, _bestOverallDecisionSet.accelerateThreshold, _bestOverallDecisionSet.decelerateThreshold,
+            _bestOverallDecisionSet.steerValue, _bestOverallDecisionSet.accelerateValue, _bestOverallDecisionSet.decelerateValue);
 
         File.AppendAllText(_resultsFilePath, line);
     }
