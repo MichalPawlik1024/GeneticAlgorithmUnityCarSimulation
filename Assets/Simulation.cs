@@ -60,6 +60,19 @@ public class Simulation : MonoBehaviour
 
     private void Update()
     {
+        if (_isDemoRound && Input.GetKeyDown(KeyCode.Q))
+        {
+            StopDemoRound();
+            return;
+        }
+
+        if (!_isDemoRound && Input.GetKeyDown(KeyCode.B))
+        {
+            if (_bestOverallDecisionSet != null)
+                StartDemoRound();
+            return;
+        }
+
         if (!_roundRunning) return;
 
         _roundTimeRemaining -= Time.deltaTime;
@@ -134,7 +147,45 @@ public class Simulation : MonoBehaviour
     private void EndSimulation()
     {
         Debug.Log($"[Simulation] Finished. Results saved to: {_resultsFilePath}");
+        GenerateCharts();
         StartDemoRound();
+    }
+
+    private void GenerateCharts()
+    {
+        string scriptPath = Path.Combine(Application.dataPath, "MakeCharts.py");
+        string outputBase = _resultsFilePath.Replace(".csv", "");
+
+        if (!File.Exists(scriptPath))
+        {
+            Debug.LogWarning($"[Simulation] MakeCharts.py not found at: {scriptPath}");
+            return;
+        }
+
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo
+            {
+                FileName = "python3",
+                Arguments = $"\"{scriptPath}\" \"{_resultsFilePath}\" \"{outputBase}.png\"",
+                UseShellExecute = false,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                CreateNoWindow = true
+            };
+
+            using var process = System.Diagnostics.Process.Start(psi);
+            process.WaitForExit();
+            string err = process.StandardError.ReadToEnd();
+            if (!string.IsNullOrEmpty(err))
+                Debug.LogWarning($"[MakeCharts] {err}");
+            else
+                Debug.Log($"[MakeCharts] Charts saved to: {outputBase}Scores.png / {outputBase}Values.png");
+        }
+        catch (System.Exception e)
+        {
+            Debug.LogError($"[MakeCharts] Failed to run python3: {e.Message}");
+        }
     }
 
     private void StartDemoRound()
@@ -151,10 +202,18 @@ public class Simulation : MonoBehaviour
 
     private void EndDemoRound()
     {
+        DestroyAllCars();
+        // Loop: restart demo immediately instead of stopping
+        Debug.Log("[Simulation] Demo round restarting...");
+        StartDemoRound();
+    }
+
+    private void StopDemoRound()
+    {
         _roundRunning = false;
         _isDemoRound = false;
         DestroyAllCars();
-        Debug.Log("[Simulation] Demo run finished.");
+        Debug.Log("[Simulation] Demo run stopped.");
     }
 
     private void AppendRoundResults()
@@ -166,7 +225,6 @@ public class Simulation : MonoBehaviour
         double worst = sets.Min(d => d.score);
         double avg = sets.Average(d => d.score);
         DecisionSet bestDs = sets.OrderByDescending(d => d.score).First();
-
         if (_bestOverallDecisionSet == null || bestDs.score > _bestOverallDecisionSet.score)
             _bestOverallDecisionSet = bestDs;
 

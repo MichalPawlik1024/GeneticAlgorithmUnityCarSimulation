@@ -6,6 +6,8 @@ using System.Reflection;
 namespace GeneticAlgorithm{
 [AttributeUsage(AttributeTargets.Field)]
 public class GeneAttribute : System.Attribute { }
+[AttributeUsage(AttributeTargets.Field)]
+public class GeneArrayAttribute : System.Attribute {}
 
 [System.Serializable]
 public class DecisionSet
@@ -18,7 +20,7 @@ public class DecisionSet
     [Gene] public double steerValue;
     [Gene] public double accelerateValue;
     [Gene] public double decelerateValue;
-
+    [GeneArray] public double[] weights;
     public DecisionSet() { }
 
     public DecisionSet(double score, double turnThreshold, double accelerateThreshold, double decelerateThreshold)
@@ -27,6 +29,7 @@ public class DecisionSet
         this.turnThreshold = turnThreshold;
         this.accelerateThreshold = accelerateThreshold;
         this.decelerateThreshold = decelerateThreshold;
+        this.weights = new double [] {0.0,1.0,1.0,1.0,1.0};
     }
 }
 
@@ -65,12 +68,14 @@ public class GeneticAlgorithm
     public List<DecisionSet> decisionSets;
     public List<DecisionSet> decisionSetsNextGeneration;
     public int populationSize;
-    public DecisionSet bestDecisionSet;
+    public DecisionSet bestDecisionSet;       // najlepszy wszechczasów (po score)
+    private DecisionSet _allTimeBest;
     public int numberOfDrawedDecisionSetsInSelection;
     public int hybrydazationChancePercent;
     public int mutationChancePercent;
 
     private readonly FieldInfo[] _geneFields;
+    private readonly FieldInfo[] _geneArrayFields;
     private readonly System.Type _instanceType;
 
     private DecisionSet CreateEmpty()
@@ -82,6 +87,8 @@ public class GeneticAlgorithm
         clone.score = source.score;
         foreach (var field in _geneFields)
             field.SetValue(clone, field.GetValue(source));
+        foreach (var field in _geneArrayFields)
+            field.SetValue(clone,((double[])field.GetValue(source)).Clone());
         return clone;
     }
 
@@ -98,6 +105,18 @@ public class GeneticAlgorithm
             double min = (double)field.GetValue(thresholdGenerationMin);
             double max = (double)field.GetValue(thresholdGenerationMax);
             field.SetValue(ds, GeneticUtils.GetRandom(min, max));
+        }
+
+        foreach (var field in _geneArrayFields){
+            double[] minArr = (double[])field.GetValue(thresholdGenerationMin);
+            double[] maxArr  = (double[])field.GetValue(thresholdGenerationMax);
+            var targetVals = (double[])minArr.Clone();
+            for(int i=0;i<maxArr.Length; i++)
+            {
+                   targetVals[i] = GeneticUtils.GetRandom(minArr[i],maxArr[i]); 
+                
+            }
+            field.SetValue(ds,targetVals.Clone());
         }
         return ds;
     }
@@ -142,6 +161,25 @@ public class GeneticAlgorithm
                     field.SetValue(child1, g1 + alpha * (g2 - g1));
                     field.SetValue(child2, g1 + (1.0 - alpha) * (g2 - g1));
                 }
+                
+                foreach (var field in _geneArrayFields){
+                    double[] g1Arr = (double[])field.GetValue(parent1);
+                    double[] g2Arr  = (double[])field.GetValue(parent2);
+                    var targetValsG1 = (double[])g1Arr.Clone();
+                    var targetValsG2 = (double[])g2Arr.Clone();
+                    double alpha = GeneticUtils.GetRandom(0.0,1.0);
+                    for(int i=0;i<g1Arr.Length; i++)
+                    {
+                        double g1 = targetValsG1[i];
+                        double g2 = targetValsG2[i];
+                         targetValsG1[i] = g1 + alpha * (g2 - g1);
+                         targetValsG2[i] = g1 + (1.0-alpha) * (g2 - g1);
+                    }
+                     field.SetValue(child1,targetValsG1.Clone());
+                     field.SetValue(child2,targetValsG2.Clone());
+                    }
+
+
             }
             else
             {
@@ -150,7 +188,7 @@ public class GeneticAlgorithm
             }
 
             decisionSetsNextGeneration.Add(child1);
-            if (decisionSetsNextGeneration.Count < populationSize)
+            if (decisionSetsNextGeneration.Count < populationSize - 1)
                 decisionSetsNextGeneration.Add(child2);
         }
     }
@@ -167,13 +205,36 @@ public class GeneticAlgorithm
                     field.SetValue(ds, current + GeneticUtils.GetRandom(-1.0, 1.0));
                 }
             }
+             foreach (var field in _geneArrayFields){
+                    double [] genesArray = (double[])field.GetValue(ds); 
+                    var targetVals = (double[])genesArray.Clone();
+                    for(int i=0; i<  targetVals.Length; i++){
+
+                if (GeneticUtils.GetRandom(0, 100) < mutationChancePercent)
+                {
+                    double current = targetVals[i]; 
+                    targetVals[i] = current + GeneticUtils.GetRandom(-1.0, 1.0);
+                }
+
+                }
+                field.SetValue(ds,targetVals.Clone());
+
+             }
         }
     }
 
     public void elitarism()
     {
-        bestDecisionSet = decisionSets.OrderByDescending(d => d.score).First();
-        decisionSetsNextGeneration.Add(bestDecisionSet);
+        var currentBest = decisionSets.OrderByDescending(d => d.score).First();
+
+        // Aktualizuj najlepszego wszechczasów tylko gdy jest lepszy
+        if (_allTimeBest == null || currentBest.score > _allTimeBest.score)
+            _allTimeBest = Clone(currentBest);
+
+        bestDecisionSet = _allTimeBest;
+
+        // Do następnej generacji trafia klon absolutnie najlepszego (nie tylko z bieżącej rundy)
+        decisionSetsNextGeneration.Add(Clone(_allTimeBest));
     }
 
     public void run()
@@ -203,6 +264,10 @@ public class GeneticAlgorithm
             .GetFields(BindingFlags.Public | BindingFlags.Instance)
             .Where(f => f.IsDefined(typeof(GeneAttribute)))
             .ToArray();
+        _geneArrayFields = _instanceType
+        .GetFields(BindingFlags.Public | BindingFlags.Instance)
+        .Where(f => f.IsDefined(typeof(GeneArrayAttribute)))
+        .ToArray();
         generateNewGeneration(thresholdGenerationMin, thresholdGenerationMax);
     }
 }
