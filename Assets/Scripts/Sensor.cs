@@ -36,7 +36,7 @@ public class Sensor : MonoBehaviour
     {
         if (Application.isPlaying)
         {
-            RaycastHit hitInfo;
+            /*RaycastHit hitInfo;
             if (Physics.Raycast(transform.position, transform.forward, out hitInfo, MaxDistance, SensorLayerMask.value))
             {
                 Gizmos.color = Color.green;
@@ -46,7 +46,7 @@ public class Sensor : MonoBehaviour
             {
                 Gizmos.color = Color.red;
                 Gizmos.DrawLine(transform.position, transform.position + transform.forward * MaxDistance);
-            }
+            }*/
         }
         else
         {

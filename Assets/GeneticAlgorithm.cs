@@ -1,7 +1,9 @@
+using JetBrains.Annotations;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using Unity.VisualScripting;
 
 namespace GeneticAlgorithm{
 [AttributeUsage(AttributeTargets.Field)]
@@ -12,24 +14,25 @@ public class GeneArrayAttribute : System.Attribute {}
 [System.Serializable]
 public class DecisionSet
 {
-    public double score;
-    [Gene] public double turnThreshold;
-    [Gene] public double accelerateThreshold;
-    [Gene] public double decelerateThreshold;
+    public const int INPUT_LAYER_N = 11;
+    public const int HIDDEN_LAYER_1_N = 16;
+    public const int HIDDEN_LAYER_2_N = 16;
+    public const int OUTPUT_LAYER_N = 2;
 
-    [Gene] public double steerValue;
-    [Gene] public double accelerateValue;
-    [Gene] public double decelerateValue;
-    [GeneArray] public double[] weights;
+    public double score;
+
+    [GeneArray] public double[] hiddenLayer1Weights = new double[INPUT_LAYER_N * HIDDEN_LAYER_1_N];
+    [GeneArray] public double[] hiddenLayer1Biases = new double[HIDDEN_LAYER_1_N];
+    [GeneArray] public double[] hiddenLayer2Weights = new double[HIDDEN_LAYER_1_N * HIDDEN_LAYER_2_N];
+    [GeneArray] public double[] hiddenLayer2Biases = new double[HIDDEN_LAYER_2_N];
+    [GeneArray] public double[] outputLayerWeights = new double[HIDDEN_LAYER_2_N * OUTPUT_LAYER_N];
+    [GeneArray] public double[] outputLayerBiases = new double[OUTPUT_LAYER_N];
+
     public DecisionSet() { }
 
-    public DecisionSet(double score, double turnThreshold, double accelerateThreshold, double decelerateThreshold)
+    public DecisionSet(double score)
     {
         this.score = score;
-        this.turnThreshold = turnThreshold;
-        this.accelerateThreshold = accelerateThreshold;
-        this.decelerateThreshold = decelerateThreshold;
-        this.weights = new double [] {0.0,1.0,1.0,1.0,1.0};
     }
 }
 
@@ -113,8 +116,9 @@ public class GeneticAlgorithm
             var targetVals = (double[])minArr.Clone();
             for(int i=0;i<maxArr.Length; i++)
             {
-                   targetVals[i] = GeneticUtils.GetRandom(minArr[i],maxArr[i]); 
-                
+                // TODO: use one set of min-max for the whole array
+                //targetVals[i] = GeneticUtils.GetRandom(minArr[i],maxArr[i]); 
+                targetVals[i] = GeneticUtils.GetRandom(-1f, 1f); 
             }
             field.SetValue(ds,targetVals.Clone());
         }
@@ -195,6 +199,8 @@ public class GeneticAlgorithm
 
     public void mutate()
     {
+        float maxChange = 0.3f;
+
         foreach (var ds in decisionSetsNextGeneration)
         {
             foreach (var field in _geneFields)
@@ -202,7 +208,7 @@ public class GeneticAlgorithm
                 if (GeneticUtils.GetRandom(0, 100) < mutationChancePercent)
                 {
                     double current = (double)field.GetValue(ds);
-                    field.SetValue(ds, current + GeneticUtils.GetRandom(-1.0, 1.0));
+                    field.SetValue(ds, current + GeneticUtils.GetRandom(-maxChange, maxChange));
                 }
             }
              foreach (var field in _geneArrayFields){
@@ -213,7 +219,7 @@ public class GeneticAlgorithm
                 if (GeneticUtils.GetRandom(0, 100) < mutationChancePercent)
                 {
                     double current = targetVals[i]; 
-                    targetVals[i] = current + GeneticUtils.GetRandom(-1.0, 1.0);
+                    targetVals[i] = current + GeneticUtils.GetRandom(-maxChange, maxChange);
                 }
 
                 }

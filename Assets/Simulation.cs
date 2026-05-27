@@ -1,9 +1,12 @@
+using GeneticAlgorithm;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Threading;
+using Unity.Collections;
+using Unity.Jobs;
 using UnityEngine;
-using GeneticAlgorithm;
 
 /// <summary>
 /// Top-level manager. Owns the Track, all CarBehaviours, and the GeneticAlgorithm.
@@ -27,8 +30,8 @@ public class Simulation : MonoBehaviour
     [SerializeField] private int _selectionDrawCount = 5;
     [SerializeField] private int _hybridizationChancePercent = 70;
     [SerializeField] private int _mutationChancePercent = 10;
-    [SerializeField] private DecisionSet _thresholdMin;
-    [SerializeField] private DecisionSet _thresholdMax;
+    private DecisionSet _thresholdMin = new DecisionSet();
+    private DecisionSet _thresholdMax = new DecisionSet();
 
     // ── State ────────────────────────────────────────────────────────────────
 
@@ -46,6 +49,11 @@ public class Simulation : MonoBehaviour
     public int CurrentRound => _currentRound;
     public float RoundTimeRemaining => _roundTimeRemaining;
 
+    private float sensorTimer = 0f;
+
+    public LayerMask WallLayerMask;
+    public float MaxSensorDistance = 20f;
+
     // ── Unity lifecycle ───────────────────────────────────────────────────────
 
     private void Awake()
@@ -56,6 +64,82 @@ public class Simulation : MonoBehaviour
     private void Start()
     {
         StartSimulation();
+    }
+
+    private void FixedUpdate()
+    {
+        if (sensorTimer > 0f)
+        {
+            sensorTimer -= Time.fixedDeltaTime;
+        }
+        else
+        {
+            sensorTimer = 0.1f;
+            updateSensors();
+        }
+
+        foreach (Car car in _activeCars)
+        {
+            car.Simulate();
+        }
+    }
+
+    private void updateSensors()
+    {
+        int totalSensors = _activeCars.Count * 7;
+
+        NativeArray<RaycastCommand> commands = new NativeArray<RaycastCommand>(totalSensors, Allocator.TempJob);
+        NativeArray<RaycastHit> results = new NativeArray<RaycastHit>(totalSensors, Allocator.TempJob);
+
+        int index = 0;
+        foreach (Car car in _activeCars)
+        {
+            if (car.IsDeactivated) // Pomiń zniszczone auta, żeby oszczędzić CPU!
+            {
+                index += 7;
+                continue;
+            }
+
+            for (int s = 0; s < 7; s++)
+            {
+                Transform sensorTransform = car.Sensors[s].transform;
+                commands[index] = new RaycastCommand(
+                    sensorTransform.position,
+                    sensorTransform.forward,
+                    new QueryParameters(WallLayerMask.value, false, QueryTriggerInteraction.Ignore, false),
+                    MaxSensorDistance
+                );
+                index++;
+            }
+        }
+
+        JobHandle handle = RaycastCommand.ScheduleBatch(commands, results, 64, default);
+        handle.Complete();
+
+        index = 0;
+        foreach (Car car in _activeCars)
+        {
+            if (car.IsDeactivated)
+            {
+                index += 7;
+                continue;
+            }
+
+            for (int s = 0; s < 7; s++)
+            {
+                RaycastHit hit = results[index];
+                if (hit.collider != null)
+                    car.SensorValues[s] = hit.distance / MaxSensorDistance;
+                else
+                    car.SensorValues[s] = 1f;
+
+                index++;
+            }
+        }
+
+        // 5. Koniecznie zwolnij pamięć!
+        commands.Dispose();
+        results.Dispose();
     }
 
     private void Update()
@@ -234,12 +318,14 @@ public class Simulation : MonoBehaviour
 
         double best = _bestOverallDecisionSet.score; // monotonicznie rosnący
 
+        float TODOexportValues = 0.0f;
+
         string line = string.Format(
             System.Globalization.CultureInfo.InvariantCulture,
             "{0},{1:F4},{2:F4},{3:F4},{4:F6},{5:F6},{6:F6},{7:F6},{8:F6},{9:F6}\n",
             _currentRound, best, avg, worst,
-            _bestOverallDecisionSet.turnThreshold, _bestOverallDecisionSet.accelerateThreshold, _bestOverallDecisionSet.decelerateThreshold,
-            _bestOverallDecisionSet.steerValue, _bestOverallDecisionSet.accelerateValue, _bestOverallDecisionSet.decelerateValue);
+            TODOexportValues, TODOexportValues, TODOexportValues,
+            TODOexportValues, TODOexportValues, TODOexportValues);
 
         File.AppendAllText(_resultsFilePath, line);
     }

@@ -44,15 +44,20 @@ public class Wheel : MonoBehaviour
         //angularVelocity = 2f;
     }
 
-    void FixedUpdate()
+    public void Simulate()
     {
-        RaycastHit hit;
-        bool onGround = Physics.Raycast(SuspensionOrigin.transform.position, -SuspensionOrigin.transform.up, out hit, SpringLength + Radius, GroundLayerMask.value);
+        if (!rb || rb.isKinematic == true)
+            return;
 
+        //RaycastHit hit;
+        //bool onGround = Physics.Raycast(SuspensionOrigin.transform.position, -SuspensionOrigin.transform.up, out hit, SpringLength + Radius, GroundLayerMask.value);
+        //float hitDistance = hit.distance;
+        float hitDistance = SuspensionOrigin.transform.position.y;
+        bool onGround = hitDistance < SpringLength + Radius;
 
         if (onGround)
         {
-            currentLength = hit.distance - Radius;
+            currentLength = hitDistance - Radius;
             springVelocity = (currentLength - lastLength) / Time.fixedDeltaTime;
         }
 
